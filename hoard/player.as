@@ -12,8 +12,8 @@ class Hoard_Player
   // the player's best race
   uint bestRaceTime;
   
-  //
-  uint bestHalfwayTime;
+  // the halfwaytime from the best race! (not the best halfway time)
+  // uint bestHalfwayTime;
 
   // number of attempts on the current map in current session
   uint tries;
@@ -48,7 +48,8 @@ class Hoard_Player
   int itemCount; // total number of items on the map
   array<bool> itemsVisited; // an array of bools, each corresponding to an item number.
   int itemsVisitedCount; // this counts how many items that have been visited, to 
-  bool hasReachedHalfwayPoint; // whether or not the player has reached halfway point, if you want to expand to more than one checkpoint, simply use a pair of arrays for this and itemsVisistedCount.
+  
+bool hasReachedHalfwayPoint; // whether or not the player has reached halfway point, if you want to expand to more than one checkpoint use arrays!
 
 
 
@@ -72,7 +73,6 @@ class Hoard_Player
   void Initialize()
   {
     // did this happen?
-    G_Print("Did this happen?");
     this.isSpawned = true;
     this.bestRaceTime = 0;
     this.positionSaved = false;
@@ -86,7 +86,6 @@ class Hoard_Player
     
     this.itemCount = getItemCount();
 
-    G_Print("itemCount " + this.itemCount);
     this.itemsVisited = array<bool>(this.itemCount);
     this.itemsVisitedCount = 0;
     this.hasReachedHalfwayPoint = false;
@@ -129,13 +128,13 @@ class Hoard_Player
       {
 	G_CenterPrintMsg( this.getClient().getEnt(),
 			  "Time: " + TimeToString( newTime ) + "\n"
-			  + (noDelta ? "" : diffString( bestTime, newTime ) ) );
+			  + (noDelta ? "" : diffString( oldServerBestTime, newTime ) ) );
 	
 	this.sendMessage(S_COLOR_WHITE + "Hoarding " + S_COLOR_ORANGE + "#"
 			 + this.tries + S_COLOR_WHITE + " finished: "
 			 + TimeToString( newTime )
 			 + S_COLOR_ORANGE + " Distance: " + S_COLOR_WHITE + ((this.lastRace.stopDistance - this.lastRace.startDistance)/1000) // racing distance
-			 + S_COLOR_ORANGE + " Personal: " + S_COLOR_WHITE + diffString(oldTime, newTime) // personal best
+			 + S_COLOR_ORANGE + " Personal: " + S_COLOR_WHITE + diffString(bestTime, newTime) // personal best
 			 + S_COLOR_ORANGE + "/Server: " + S_COLOR_WHITE + diffString(oldServerBestTime, newTime) // server best
 			 + "\n");
       }
@@ -237,7 +236,7 @@ class Hoard_Player
 
 
   // this is called through the spamFilter method, if the player touches an item.
-  void touchItem(int itemNum)
+  void touchItem(int itemNum, cEntity @ent)
   {
     
     if( !this.isSpawned )
@@ -246,13 +245,14 @@ class Hoard_Player
     // if the player is already in a race(has started) simply add the item to the array and check whether or not the player has collected all the items.
     if ( this.isRacing() )
       {
-	if (visitItem(itemNum))
+	if (visitItem(itemNum, @ent))
 	    raceFinished();
 	return;
       }
 	
 
     // This is the first item touched - > start race
+    // everything following in this method is for starting a race
 
     // BUT! Not if the player has prejumped (here meaning over DASH_SPEED 499)
     if (getSpeed() > 500)
@@ -265,30 +265,42 @@ class Hoard_Player
 
     falseArray();
     this.itemsVisitedCount = 0;
+
     
     @this.race = @Hoard_Player_Race();
     this.race.setPlayer(@this);
     this.race.start();
     this.tries++;
 
+    // Motivation!
+    sendAward(S_COLOR_WHITE + "Collect all the items!");
+
     // visit the first item
-    visitItem(itemNum);
+    visitItem(itemNum, @ent);
     
 
     
   }
 
   // Called by touchItem, this marks the item as visited and if all items have been visited it will return true.
-  bool visitItem(int itemNum)
-  {
+  bool visitItem(int itemNum, cEntity @speaker)
+  {      
     if (this.itemsVisited[itemNum] == true)
       return false;
     
     
-    // this has just been visited for the first time!
-    // TODO: 
+        
 
-    
+
+
+    // play pickup sound!
+    G_LocalSound( client, CHAN_ITEM, G_SoundIndex(speaker.item.pickupSound));
+
+    // make the item disappear!
+    hideItem((client.get_playerNum()), itemNum, this.client.getEnt());
+
+
+
     this.itemsVisited[itemNum] = true;
     this.itemsVisitedCount++;
 
@@ -297,11 +309,9 @@ class Hoard_Player
      if (this.itemsVisitedCount >= (this.itemCount / 2))
 	{
 	  this.hasReachedHalfwayPoint = true;
-	  G_Print("Halfway there!");
+	  
 	}
     
-
-    G_Print("You have visited " + this.itemsVisitedCount + " out of " + this.itemCount + " total items");
     // if race is finished!
     if (this.itemsVisitedCount == this.itemCount)
       return true;
@@ -332,11 +342,14 @@ class Hoard_Player
     this.racingTime += this.race.getTime();
     
     @this.race = null;
-
-    
+   
     
     // print shit
     raceCallback(oldtime, this.bestRaceTime, newTime);
+
+
+    // respawn all the items that were hidden!
+    resetArray(client.get_playerNum(), this.client.getEnt());
    
   }
 
@@ -351,7 +364,8 @@ class Hoard_Player
 
   void restartingRace()
   {
-
+;
+    
     // reset spam filter!
     this.lastItemReceived = -1;
     this.lastItemTime = 0;
@@ -364,6 +378,9 @@ class Hoard_Player
 	this.racingTime += this.race.getCurrentTime();
     
     @this.race = null;
+
+    // respawn all the items that were hidden!
+    resetArray(client.get_playerNum(), this.client.getEnt());
   }
   
   void cancelRace()
@@ -416,24 +433,21 @@ class Hoard_Player
     G_PrintMsg( client.getEnt(), message );
   }
 
-  void spamFilterOnInput(int item, cEntity @speaker)
+  // item number, entity for the sound effect
+  void spamFilterOnInput(int item, cEntity @ent)
   {
     uint TIMEBUFFER_DOOM = 2000; //milliseconds???
     if (this.lastItemReceived != item)
       {
 	this.lastItemTime = levelTime;
 	this.lastItemReceived = item;
-	// old attenuation: 0.875
-	G_Sound( speaker, CHAN_ITEM, G_SoundIndex( speaker.item.pickupSound ), 0.4 );
-	touchItem(item);
+	touchItem(item, @ent);
 	return;
       }
     if (levelTime > (this.lastItemTime + TIMEBUFFER_DOOM))
       {
 	this.lastItemTime = levelTime;
-	// old attentuation : 0.875
-	G_Sound( speaker, CHAN_ITEM, G_SoundIndex( speaker.item.pickupSound ), 0.4 );
-	touchItem(item);
+	touchItem(item, ent);
 	return;
       }
       

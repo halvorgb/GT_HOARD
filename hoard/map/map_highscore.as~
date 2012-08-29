@@ -3,7 +3,6 @@ class Hoard_Map_Highscore
   uint finishTime;
   uint64 timeStamp;
   String playerName;
-  uint halfwayTime;
   Hoard_Map_Highscore()
   {
   }
@@ -15,7 +14,6 @@ class Hoard_Map_Highscore
   {
     this.finishTime = highScore.finishTime;
     this.playerName = highScore.playerName;
-    this.halfwayTime = highScore.halfwayTime;
     return this;
   }
 
@@ -46,12 +44,6 @@ class Hoard_Map_Highscore
     this.finishTime = race.getTime();
     this.playerName = race.getPlayer().getClient().name;
     this.timeStamp = race.getTimeStamp();
-    this.halfwayTime = race.getHalfwayTime();
-  }
-
-  uint getHalfwayTime()
-  {
-    return this.halfwayTime;
   }
 
 }

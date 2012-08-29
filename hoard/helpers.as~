@@ -169,6 +169,8 @@ int Racesow_GetClientNumber( String playerName )
 	    G_Print(i + " ok this happened\n");
             continue;
 	  }
+	G_Print(client.name + ":" + playerName + "\n");
+	G_Print(client.playerNum + "..\n");
 	
 
         if (client.name.removeColorTokens() == playerName)

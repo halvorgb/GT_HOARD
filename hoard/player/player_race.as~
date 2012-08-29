@@ -6,13 +6,13 @@ class Hoard_Player_Race
   uint64 stopDistance;
   uint64 timeStamp;
   int delta;
-  uint halfway;
+  uint halfwayTime;
 
   Hoard_Player @player;
   
   Hoard_Player_Race()
   {
-    this.halfway = 0;
+    this.halfwayTime = 0;
     this.delta = 0;
     this.stopTime = 0;
     this.startTime = 0;
@@ -97,11 +97,11 @@ class Hoard_Player_Race
 
   int getHalfwayTime()
   {
-    return this.halfway;
+    return this.halfwayTime;
   }
   
   void halfwayTime()
   {
-    this.halfway = levelTime - this.startTime;
+    this.halfwayTime = levelTime - this.startTime;
   }
 }
