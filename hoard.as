@@ -6,7 +6,6 @@
 
 Hoard_Player[] players( maxClients );
 Hoard_Map @map;
-Hoard_Items @items;
 String playerList;
 String spectatorList;
 uint scoreboardLastUpdate;
@@ -110,12 +109,8 @@ void GT_SpawnGametype()
   // Initiate the map
   @map = Hoard_Map();
 
-  // setup players
-  for ( int i = 0; i < maxClients; i++ )
-      players[i].Initialize(items);
-
-  // initiate the items class
-  @items = Hoard_Items();
+  // reset items vars
+  reset_items();
   // replace all items on the map wiith new replacementItems, it works.
   for ( int i = 0; i <= numEntities; i++ )
     {
@@ -131,11 +126,15 @@ void GT_SpawnGametype()
                 {
 		  // : ))))
 		  ent.classname = "AS_" + Item.classname;
-		  items.replacementItem( @ent );
+		  replacementItem( @ent );
                 }
             }
         }
     }
+  // setup players
+  // testing shitz
+  for ( int i = 0; i < maxClients; i++ )
+    players[i].Initialize();
   
 }
 
@@ -172,7 +171,7 @@ void GT_MatchStateStarted()
       // try to free all entities, free all objects!
 
       // free objects
-      
+      /*
       for ( int i = 0; i < maxClients; i++ )
 	{
 	  cClient @c = @G_GetClient( i );
@@ -188,10 +187,10 @@ void GT_MatchStateStarted()
       
       map.reset();
       @map = null;
-      
-      for (int i = 0; i < items.getItemCount(); i++)
+      */
+      for (int i = 0; i < getItemCount(); i++)
 	{
-	  items.itemStorage[i].freeEntity();
+	  itemStorage[i].freeEntity();
 	}
       GENERIC_SetUpEndMatch();
       match.launchState(MATCH_STATE_POSTMATCH + 1);
@@ -334,7 +333,7 @@ void GT_scoreEvent( cClient @client, String &score_event, String &args )
 		}
 		else if ( score_event == "connect" )
 		{
-			player.Initialize(@items);
+			player.Initialize();
 					}
 		else if ( score_event == "enterGame" )
 		{
@@ -343,7 +342,7 @@ void GT_scoreEvent( cClient @client, String &score_event, String &args )
 		}
 		else if ( score_event == "disconnect" )
 		  {
-		    player.Initialize(items);
+		    player.Initialize();
 		  }
 	}
 	

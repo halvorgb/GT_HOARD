@@ -113,7 +113,8 @@ void GT_SpawnGametype()
   for ( int i = 0; i < maxClients; i++ )
       players[i].Initialize();
 
-  initCallVoteFix();
+  // reset items var
+  reset_items();
   // replace all items on the map wiith new replacementItems, it works.
   for ( int i = 0; i <= numEntities; i++ )
     {
@@ -170,7 +171,7 @@ void GT_MatchStateStarted()
       // try to free all entities, free all objects!
 
       // free objects
-      
+      /*
       for ( int i = 0; i < maxClients; i++ )
 	{
 	  cClient @c = @G_GetClient( i );
@@ -186,7 +187,7 @@ void GT_MatchStateStarted()
       
       map.reset();
       @map = null;
-      
+      */
       for (int i = 0; i < getItemCount(); i++)
 	{
 	  itemStorage[i].freeEntity();

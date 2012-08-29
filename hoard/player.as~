@@ -85,6 +85,8 @@ class Hoard_Player
     this.lastItemTime = 0;
     
     this.itemCount = getItemCount();
+
+    G_Print("itemCount " + this.itemCount);
     this.itemsVisited = array<bool>(this.itemCount);
     this.itemsVisitedCount = 0;
     this.hasReachedHalfwayPoint = false;
@@ -115,7 +117,8 @@ class Hoard_Player
     uint bestTime;
     uint oldServerBestTime;
     
-    bestTime = oldTime;
+    //bestTime = oldTime;
+    bestTime = oldBestTime;
     oldServerBestTime = map.getHighScore().getTime();
     this.sendAward( S_COLOR_CYAN + "Hoarding Complete!" );
     
@@ -153,6 +156,8 @@ class Hoard_Player
 		   + TimeToString( newTime ) + "\n" );
       }
 
+
+    
     
   }
 
@@ -224,7 +229,7 @@ class Hoard_Player
   String getState()
   {
     if ( this.isRacing() )
-        this.state = "^2racing";
+      this.state = "^2racing";
     else
       this.state = "^3prerace";
     return this.state;
@@ -234,6 +239,7 @@ class Hoard_Player
   // this is called through the spamFilter method, if the player touches an item.
   void touchItem(int itemNum)
   {
+    
     if( !this.isSpawned )
       return;
 
@@ -241,9 +247,7 @@ class Hoard_Player
     if ( this.isRacing() )
       {
 	if (visitItem(itemNum))
-	  {
 	    raceFinished();
-	  }
 	return;
       }
 	
@@ -260,6 +264,7 @@ class Hoard_Player
     // initialize array to all false
 
     falseArray();
+    this.itemsVisitedCount = 0;
     
     @this.race = @Hoard_Player_Race();
     this.race.setPlayer(@this);
@@ -279,6 +284,7 @@ class Hoard_Player
     if (this.itemsVisited[itemNum] == true)
       return false;
     
+    
     // this has just been visited for the first time!
     // TODO: 
 
@@ -294,6 +300,8 @@ class Hoard_Player
 	  G_Print("Halfway there!");
 	}
     
+
+    G_Print("You have visited " + this.itemsVisitedCount + " out of " + this.itemCount + " total items");
     // if race is finished!
     if (this.itemsVisitedCount == this.itemCount)
       return true;
@@ -315,7 +323,8 @@ class Hoard_Player
     uint newTime = this.race.getTime();
 
     // record..?
-    if (this.bestRaceTime == 0 || newTime / 100 < this.bestRaceTime )
+    //if (this.bestRaceTime == 0 || newTime / 100 < this.bestRaceTime )
+    if (this.bestRaceTime == 0 || newTime < this.bestRaceTime )
       this.getClient().stats.setScore(this.race.getTime()/100);
     
     // - wrong, commented out.
@@ -325,8 +334,8 @@ class Hoard_Player
     @this.race = null;
 
     
-
     
+    // print shit
     raceCallback(oldtime, this.bestRaceTime, newTime);
    
   }
