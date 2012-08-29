@@ -57,7 +57,6 @@ class Hoard_Player
   int lastItemReceived;
   uint lastItemTime;
   
-  Hoard_Items @items;
   
 
   // constructor
@@ -70,7 +69,7 @@ class Hoard_Player
   {
   }
   
-  void Initialize(Hoard_Items @it)
+  void Initialize()
   {
     // did this happen?
     G_Print("Did this happen?");
@@ -85,9 +84,7 @@ class Hoard_Player
     this.lastItemReceived = -1;
     this.lastItemTime = 0;
     
-    @this.items = @it;
-    
-    this.itemCount = it.getItemCount();
+    this.itemCount = getItemCount();
     this.itemsVisited = array<bool>(this.itemCount);
     this.itemsVisitedCount = 0;
     this.hasReachedHalfwayPoint = false;

@@ -55,21 +55,38 @@ class Hoard_Items
 	ent.skinNum = oldItem.skinNum;
 	oldItem.freeEntity();
       }
-    @ent.think = replacementItem_think;
-    @ent.touch = replacementItem_touch;
-    @ent.use = replacementItem_use;
+    @ent.think = this.replacementItem_think;
+    @ent.touch = this.replacementItem_touch;
+    @ent.use = this.replacementItem_use;
     ent.linkEntity();
 
     @this.itemStorage[itemCount] = @ent;
     this.itemCount++;
   }
 
-  int getItemCount()
+  void replacementItem_think( cEntity @ent )
   {
-    return itemCount;
+    ent.respawnEffect();
   }
-}
-// this function calls the player's spam filter.
+
+  /*
+   * Soundfix
+   */
+  void replacementItem_use( cEntity @ent, cEntity @other, cEntity @activator )
+  {
+    if( ent.wait > 0 )
+      {
+        ent.nextThink = levelTime + ent.wait;
+      }
+    else
+      {
+        ent.nextThink = levelTime + 1;
+      }
+  }
+
+
+
+  // this function calls the player's spam filter.
   void replacementItem_touch( cEntity @ent, cEntity @other, const Vec3 planeNormal, int surfFlags )
   {
     if( @other.client == null || other.moveType != MOVETYPE_PLAYER )
@@ -88,23 +105,9 @@ class Hoard_Items
     
   }
 
-void replacementItem_think( cEntity @ent )
-{
-  ent.respawnEffect();
-}
 
-/*
- * Soundfix
- */
-void replacementItem_use( cEntity @ent, cEntity @other, cEntity @activator )
-{
-  if( ent.wait > 0 )
-    {
-      ent.nextThink = levelTime + ent.wait;
-    }
-  else
-    {
-      ent.nextThink = levelTime + 1;
-    }
+  int getItemCount()
+  {
+    return itemCount;
+  }
 }
-
