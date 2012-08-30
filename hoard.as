@@ -67,7 +67,6 @@ void GT_InitGametype()
     gametype.countdownEnabled = false;
     gametype.mathAbortDisabled = true;
 
-    // no shooting in this GT
     gametype.shootingDisabled = true ;
     gametype.infiniteAmmo = true;
     gametype.canForceModels = true;
@@ -79,10 +78,6 @@ void GT_InitGametype()
     gametype.hasChallengersQueue = false;
     gametype.maxPlayersPerTeam = 0;
     gametype.spawnpointRadius = 0;
-
-    // TODO: DO IT FUCKER
-    // gives an error, I dunno.
-    // g_warmup_timelimit.set("0"); //g_warmup_enabled was removed in warsow 0.6
 
     // set spawnsystem type
     for ( int team = TEAM_PLAYERS; team < GS_MAX_TEAMS; team++ )
@@ -97,6 +92,7 @@ void GT_InitGametype()
 
     G_RegisterCommand( "racerestart" );
     G_RegisterCommand( "position" );
+    G_RegisterCommand( "itemlist" );
     G_RegisterCommand( "help" );
 
     G_Print( "Gametype '" + gametype.title + "' initialized\n" );
@@ -108,36 +104,16 @@ void GT_SpawnGametype()
 
   // Initiate the map
   @map = Hoard_Map();
-
-  // reset items vars
-  reset_items();
-
-  // replace all items on the map with new replacementItems, it works.
-  int index = 0;
-  for ( int i = 0; i <= numEntities; i++ )
+ 
+  // 1. Create list of items for reference.
+  createItemsList();
+  // 2. Set up players.
+  for (int i = 0; i < maxClients; i++)
     {
-      cEntity @ent = @G_GetEntity(i);
-      if (@ent == null)
-	continue;
-      if(ent.type == ET_ITEM)
-	{
-	  cItem @Item = @ent.item;
-	  if( @Item != null && ent.classname == Item.classname )
-	    {
-	      if( ( ent.solid != SOLID_NOT ) || ( ( @ent.findTargetingEntity( null ) != null ) && ( ent.findTargetingEntity( null ).classname != "target_give" ) ) ) //ok, not connected to target_give
-		{
-		  // : ))))
-		  ent.classname = "AS_" + Item.classname;
-		  replacementItem( @ent, index );
-		  index++;
-		}
-	    }
-	}
+      players[i] = Hoard_Player(i);
+      
     }
-  
-  // setup players
-  for (int i = 0; i < maxClients; i++ )
-    players[i].Initialize();
+
   
 }
 
@@ -169,33 +145,15 @@ void GT_MatchStateStarted()
       break; 
 
     case MATCH_STATE_POSTMATCH:      
-      // try to free all entities, free all objects!
-
-      // free objects
-      /*
-      for ( int i = 0; i < maxClients; i++ )
-	{
-	  cClient @c = @G_GetClient( i );
-
-	  if ( c.state() < CS_SPAWNED )
-	    continue;
-	  Hoard_Player @p = @Racesow_GetPlayerByClient(c);
-	  
-	  p.cancelRace();
-	  @p.lastRace = null;
-	  @p = null;
-	}
-      
-      map.reset();
-      @map = null;
-      */
+      // freeing script spawned entities.
       for (int j = 0; j < maxClients; j++)
-	{	
-	for (int i = 0; i < getItemCount(); i++)
-	  {
-	    itemStorage[j][i].freeEntity();
-	  }
+	{ 
+	  cClient @c = @G_GetClient(j);
+	  Hoard_Player @hp = @Racesow_GetPlayerByClient(c);
+	  if (@hp != null)
+	    hp.freeEntityArray();
 	}
+	  
       GENERIC_SetUpEndMatch();
       match.launchState(MATCH_STATE_POSTMATCH + 1);
       break;
@@ -220,6 +178,7 @@ void GT_ThinkRules()
   for ( int i = 0; i < maxClients; i++ )
     {
       cClient @c = @G_GetClient( i );
+
 
       if ( c.state() < CS_SPAWNED )
 	continue;
@@ -254,56 +213,29 @@ void GT_ThinkRules()
       c.setHUDStat( STAT_MESSAGE_OTHER, 0 );
       c.setHUDStat( STAT_MESSAGE_ALPHA, 0 );
       c.setHUDStat( STAT_MESSAGE_BETA, 0 );
-
-    }
-
-
-
-  // -- race.as 
-
-  
-  // set all clients race stats
-  for ( int i = 0; i < maxClients; i++ )
-    {
-      cClient @d = @G_GetClient( i );
-
-      if ( d.state() < CS_SPAWNED )
-	continue;
-
-      Hoard_Player @player = @Racesow_GetPlayerByClient( d );
+      
 
       if( ( player.client.team == TEAM_SPECTATOR ) && !( player.client.chaseActive ) )
+	{
 	@player.race = null;
+	// respawn all the items for that player (The function checks if they already are shown)
+	player.showAllItems();
+	}
+      // TODO: if chasing a player: show the same items? 
 
       if ( player.isRacing() )
         {
-	  d.setHUDStat( STAT_TIME_SELF, player.race.getCurrentTime() / 100 );
+	  c.setHUDStat( STAT_TIME_SELF, player.race.getCurrentTime() / 100 );
 	  if ( player.highestSpeed < player.getSpeed() )
-	    player.highestSpeed = player.getSpeed(); // updating the heighestSpeed attribute.
+	    player.highestSpeed = player.getSpeed(); // updating the highestSpeed attribute.
         }
 
-      d.setHUDStat( STAT_TIME_BEST, player.getBestTime() / 100 );
-      d.setHUDStat( STAT_TIME_RECORD, map.getHighScore().getTime() / 100 );
-    }
+      c.setHUDStat( STAT_TIME_BEST, player.getBestTime() / 100 );
+      c.setHUDStat( STAT_TIME_RECORD, map.getHighScore().getTime() / 100 );
 
-  
-  // special handling of spectators' item views!
-  cTeam @spectators = @G_GetTeam( TEAM_SPECTATOR );
-  cEntity @other;
-  for ( int i = 0; @spectators.ent( i ) != null; i++ )
-    {
-      @other = @spectators.ent( i );
-      if ( @other.client != null )
-	{
-	  if( !other.client.connecting && other.client.state() >= CS_SPAWNED )
-	    //add all other spectators
-	    {
-	      // if chasing someone ? then view the items that your target is viewing : else view all items TWEAK IT!
-	      //(other.client.chaseActive && other.client.chaseTarget != 0) ? spectatorArray(other.client.chaseTarget, other.client.get_playerNum()) : resetArray(i, @other);
-	      resetArray(i, @other);
-	    }
-	  
-	}
+
+
+
     }
 }
 
@@ -311,11 +243,7 @@ void GT_ThinkRules()
 
 void GT_playerRespawn( cEntity @ent, int old_team, int new_team )
 {
-    // -- main.as
-
     Hoard_Player @player = @Racesow_GetPlayerByClient( ent.client );
-
-    // -- race.as
 
     if ( ent.isGhosting() )
         return;
@@ -331,8 +259,6 @@ void GT_playerRespawn( cEntity @ent, int old_team, int new_team )
     player.getClient().stats.setScore(player.bestRaceTime);
     player.restartingRace();
 
-
-    // -- main.as
     // - If used in racesow:
     //ent.client.setPMoveDashSpeed( 450 );
 
@@ -340,10 +266,9 @@ void GT_playerRespawn( cEntity @ent, int old_team, int new_team )
 
 void GT_scoreEvent( cClient @client, String &score_event, String &args )
 {
-    // from main.as
-
     if( @client == null)
         return;
+
     Hoard_Player @player = @Racesow_GetPlayerByClient( client );
 	if (@player != null )
 	{
@@ -358,16 +283,21 @@ void GT_scoreEvent( cClient @client, String &score_event, String &args )
 		}
 		else if ( score_event == "connect" )
 		{
-			player.Initialize();
-					}
+		  
+		}
 		else if ( score_event == "enterGame" )
 		{
-		  player.appear();
+		  // if this works, fucking DUH
+		  player.appear(client.get_playerNum());
+		  //player = Hoard_Player(client.get_playerNum());
+		  //G_Print("COUNT\n");
+
 		  
 		}
 		else if ( score_event == "disconnect" )
 		  {
-		    player.Initialize();
+		    //player = Hoard_Player(client.get_playerNum());
+		    //player.freeEntityArray();
 		  }
 	}
 	
@@ -376,7 +306,6 @@ void GT_scoreEvent( cClient @client, String &score_event, String &args )
 String @GT_ScoreboardMessage( uint maxlen )
 {
   
-  //-- from race.as
   String scoreboardMessage, entry;
   cTeam @team;
   cEntity @ent;
@@ -459,6 +388,8 @@ bool GT_Command( cClient @client, String &cmdString, String &argsString, int arg
   // disallow these commands for spectators.
   if ((cmdString == "racerestart" || (cmdString == "position" && argsString == "save")) && client.team != TEAM_PLAYERS)
     return false;
+
+  
   
   String response = "";
   if (cmdString == "racerestart")
@@ -490,7 +421,6 @@ bool GT_Command( cClient @client, String &cmdString, String &argsString, int arg
 	  cEntity @ent = @client.getEnt();
 	  if (@ent != null && ent.type == ET_PLAYER )
 	    ent.sustainDamage(@ent, null, Vec3(0,0,0), 9999, 0, 0, MOD_TELEFRAG );
-	  //G_PrintMsg(client.getEnt(), "not yet implemented\n");
 	  return true;
 	}
     }
@@ -500,7 +430,7 @@ bool GT_Command( cClient @client, String &cmdString, String &argsString, int arg
       
       if (player.isSpawned && player.positionSave())
 	{
-	  response += "Position saved!";
+	  response += "Position saved!\n";
 	  G_PrintMsg (client.getEnt(), response);
 	  return true;
 	}
@@ -508,10 +438,18 @@ bool GT_Command( cClient @client, String &cmdString, String &argsString, int arg
 	{
 	  // if this happens, where does the message get sent? :D
 	  // better safe than sorry!
-	  response += "ERROR: client entity == null";
+	  //response += "You are either spamming or trying to save within an item, please stop!";
+	  response += "Spam?\n";
 	  G_PrintMsg (client.getEnt(), response);
 	  return false;
 	}
+    }
+  else if (cmdString == "itemlist")
+    {
+      Hoard_Player @player = @Racesow_GetPlayerByClient(client);
+      response += player.listRemainingItems();
+      G_PrintMsg(client.getEnt(), response);
+      return true;
     }
   else if (cmdString == "help")
     
@@ -523,6 +461,7 @@ bool GT_Command( cClient @client, String &cmdString, String &argsString, int arg
       response += "Commands: \n";
       response += "racerestart - Ends your current race(if you are in one) and teleports you to a spawnpoint or a saved position\n";
       response += "position save - Saves your current position for respawning at a later time";
+      response += "itemhelp - Prints the names of all the items you have not picked up!";
       G_PrintMsg (client.getEnt(), response);
       return true;
     }

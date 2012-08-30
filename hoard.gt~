@@ -9,7 +9,6 @@ hoard/map.as;
 hoard/player.as;
 hoard/map/map_highscore.as;
 hoard/player/player_race.as;
-hoard/player/player_touchListen.as;
 hoard/helpers.as;
 hoard.as;
 

@@ -1,174 +1,109 @@
 int itemCount;
-array<array<cEntity@>> itemStorage;
+// this holds every item all the time.
+array<cEntity@> itemStorage;
+
+
+array<cEntity@> getItemsCopy()
+{
+  // initialize array to be returned
+  array<cEntity@> newArr(itemCount);
   
-void reset_items()
-{
-  itemCount = 0;
-  itemStorage = array<array<cEntity@>>(maxClients, array<cEntity@>(numEntities));
-}
-
-void resetArray(int clientNumber, cEntity @owner)
-{
-  for (int i = 0; i < numEntities; i++)
-    {
-      if (@itemStorage[clientNumber][i] == null)
-	{
-	  break;
-	}
-      else
-	{  
-	  // THIS IS TO SHOW THE ITEM!
-	  itemStorage[clientNumber][i].svflags = SVF_ONLYOWNER;
-
-	  // Best leave this one in!
-	  itemStorage[clientNumber][i].linkEntity();
-	}
-    }
-
-}
-
-void hideItem(int clientNumber, int itemNumber, cEntity @owner)
-{
-
-  itemStorage[clientNumber][itemNumber].svflags |= SVF_NOCLIENT;
-  itemStorage[clientNumber][itemNumber].linkEntity();
-}
-
-int findInItemStorage(cEntity @ent, int owner)
-{
+  // we now know the itemCount!
   for (int i = 0; i < itemCount; i++)
     {
-      if (@itemStorage[owner][i] == @ent)
-	return i;
+      @newArr[i] = @copyItem(@itemStorage[i]);
     }
-  return -1;
-} 
+  return newArr;
+}
 
-// just a straight copy.
-void replacementItem( cEntity @oldItem, int itemIndex)
-{
-  for (int i = 0; i < maxClients; i++)
+// this is ran one time, it is the mold for creating copies.
+void createItemsList()
+{ 
+  // initialize array
+  itemCount = 0;
+  itemStorage = array<cEntity@>(numEntities);
+
+  // replace all items on the map with new replacementItems, it works.
+  for ( int i = 0; i <= numEntities; i++ )
     {
+      cEntity @ent = @G_GetEntity(i);
+      if (@ent == null)
+	continue;
+      if(ent.type == ET_ITEM)
+	{
+	  cItem @Item = @ent.item;
+	  if( @Item != null && ent.classname == Item.classname )
+	    {
+	      if( ( ent.solid != SOLID_NOT ) || ( ( @ent.findTargetingEntity( null ) != null ) && ( ent.findTargetingEntity( null ).classname != "target_give" ) ) ) //ok, not connected to target_give
+		{
+		  // this one does some funky stuff!
+		  ent.classname = "AS_" + Item.classname;
+		  @itemStorage[itemCount] = @copyItem( @ent);
+		  itemCount++;
+		  
+		  // free the old item!
+		  ent.solid = SOLID_NOT;
+		  // Item.classname? does this matter?
+		  ent.classname = "ASmodel_" + ent.item.classname;
+		  ent.freeEntity();
+		}
+	    }
+	}
+    }
 
-      cEntity @owner = @G_GetClient(i).getEnt();
-      
-      Vec3 min, max;
-      cEntity @ent = @G_SpawnEntity( oldItem.classname );
-      
-      
-      cItem @item = @G_GetItem( oldItem.item.tag );
-      @ent.item = @item;
-      
   
-      
+}
 
-      ent.origin = oldItem.origin;
-      oldItem.getSize( min, max );
-      ent.setSize( min, max );
-      ent.type = ET_ITEM;
-      ent.solid = SOLID_TRIGGER;
-      ent.moveType = MOVETYPE_NONE;
-      ent.count = oldItem.count;
-      ent.spawnFlags = oldItem.spawnFlags;
+// just a straight copy, this is called by both createItemsList() and getItemsCopy()
+cEntity @copyItem( cEntity @oldItem)
+{
+  Vec3 min, max;
+ cEntity @ent = @G_SpawnEntity( oldItem.classname );
       
+      
+ cItem @item = @G_GetItem( oldItem.item.tag );
+ @ent.item = @item;
 
-      @ent.owner = @owner;
-      ent.ownerNum = owner.get_entNum();
+ ent.origin = oldItem.origin;
+ oldItem.getSize( min, max );
+ ent.setSize( min, max );
+ ent.type = ET_ITEM;
+ ent.solid = SOLID_TRIGGER;
+ ent.moveType = MOVETYPE_NONE;
+ ent.count = oldItem.count;
+ ent.spawnFlags = oldItem.spawnFlags;
       
-      ent.svflags = SVF_ONLYOWNER;// | SVF_BROADCAST;
+ /* no owner for this set!
+ @ent.owner = @owner;
+ ent.ownerNum = owner.get_entNum();
+ */   
+ ent.svflags = SVF_NOCLIENT;// | SVF_BROADCAST;
 
      
-      ent.style = oldItem.style;
-      ent.target = oldItem.target;
-      ent.targetname = oldItem.targetname;
-      ent.setupModel( oldItem.item.model, oldItem.item.model2 );
+ ent.style = oldItem.style;
+ ent.target = oldItem.target;
+ ent.targetname = oldItem.targetname;
+ ent.setupModel( oldItem.item.model, oldItem.item.model2 );
   
   
-  
-      ent.wait = oldItem.wait;
-      if( ent.wait > 0 )
-	{
-	  ent.nextThink = levelTime + ent.wait;
-	}
+ /*
+ ent.wait = oldItem.wait;
+ if( ent.wait > 0 )
+   {
+     ent.nextThink = levelTime + ent.wait;
+   }
+ */
       
-      ent.skinNum = oldItem.skinNum;
+ ent.skinNum = oldItem.skinNum;
 
-      // don't remove oldEntity until all copies are made!
-      if (i == (maxClients - 1)) 
-	{
-	  oldItem.solid = SOLID_NOT;
-	  oldItem.classname = "ASmodel_" + ent.item.classname;
-	  oldItem.freeEntity();
-	}
-      @ent.think = replacementItem_think;
-      @ent.touch = replacementItem_touch;
-      @ent.use = replacementItem_use;
-  
+ /* TOUCH is assigned upon import to Hoard_Player
+ @ent.think = replacementItem_think;
+ @ent.touch = replacementItem_touch;
+ @ent.use = replacementItem_use;
+ */
       
-      ent.linkEntity();
-      
-      @itemStorage[i][itemIndex] = @ent;
-    }
-  setItemCount(itemIndex + 1);
-}
+ ent.linkEntity();
+ return @ent;
+}  
 
-  void setItemCount(int n)
-  {
-    itemCount = n;
-  }
-  
-  int getItemCount()
-  {
-    return itemCount;
-  }
-  
-  // this function calls the player's spam filter.
-  void replacementItem_touch( cEntity @ent, cEntity @other, const Vec3 planeNormal, int surfFlags )
-{
-  if( @other.client == null || other.moveType != MOVETYPE_PLAYER)
-    return;
-  if( ( other.client.pmoveFeatures & PMFEAT_ITEMPICK ) == 0 )
-    return;
-  
-  // play pickup sound!
-  //G_Sound( other, CHAN_ITEM, G_SoundIndex( ent.item.pickupSound ), 0.875 );
-  // --!  Pickup sound is played in the player class.
-  int c = -1;
-  for (int i = 0; i < maxClients; i++)
-    {
-      if (ent.ownerNum == G_GetClient(i).getEnt().get_entNum())
-	c = i;
-    }
-  if (c == -1)
-    {
-      G_Print("ERROR: Ownership of item not established!");
-      return; 
-    }
-  
-  int index = findInItemStorage(ent, c);
-    
-  // just give the message to player!
-  Racesow_GetPlayerByClient(other.client).spamFilterOnInput(index, ent);
-    
-}
 
-void replacementItem_think( cEntity @ent )
-{
-  ent.respawnEffect();
-}
-
-/*
- * Soundfix
- * This is not used BUT I DARE NOT REMOVE IT!
- */ 
-void replacementItem_use( cEntity @ent, cEntity @other, cEntity @activator )
-{
-  if( ent.wait > 0 )
-    {
-      ent.nextThink = levelTime + ent.wait;
-    }
-  else
-    {
-      ent.nextThink = levelTime + 1;
-    }
- }
